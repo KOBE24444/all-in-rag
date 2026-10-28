@@ -1,25 +1,41 @@
-from unstructured.partition.auto import partition
 
-# PDF文件路径
-pdf_path = "../../data/C2/pdf/rag.pdf"
-
-# 使用Unstructured加载并解析PDF文档
-elements = partition(
-    filename=pdf_path,
-    content_type="application/pdf"
-)
-
-# 打印解析结果
-print(f"解析完成: {len(elements)} 个元素, {sum(len(str(e)) for e in elements)} 字符")
-
-# 统计元素类型
+from pathlib import Path
 from collections import Counter
-types = Counter(e.category for e in elements)
-print(f"元素类型: {dict(types)}")
+from time import perf_counter
+from unstructured.partition.pdf import partition_pdf
 
-# 显示所有元素
-print("\n所有元素:")
-for i, element in enumerate(elements, 1):
-    print(f"Element {i} ({element.category}):")
-    print(element)
-    print("=" * 60)
+# 获取项目中原有 PDF 的绝对路径
+pdf_path = Path(__file__).resolve().parents[2] / "data/C2/pdf/rag.pdf"
+
+# 两种策略使用完全相同的 PDF
+for strategy in ["hi_res", "ocr_only"]:
+    print(f"\n========== {strategy} ==========")
+
+    try:
+        start = perf_counter()
+
+        # 核心实验：仅改变解析策略
+        elements = partition_pdf(
+            filename=str(pdf_path),
+            strategy=strategy,
+            languages=["chi_sim", "eng"]
+        )
+
+        elapsed = perf_counter() - start
+
+        # 比较解析耗时、元素数量与分类
+        print("耗时（秒）：", round(elapsed, 2))
+        print("元素数量：", len(elements))
+        print("字符总数：", sum(len(str(e)) for e in elements))
+
+        types = Counter(e.category for e in elements)
+        print("元素类型分布：", dict(types))
+
+        # 只显示前 6 个元素，避免终端输出过长
+        for i, element in enumerate(elements[:6], 1):
+            print(f"\n元素 {i}：{element.category}")
+            print(str(element)[:200])
+
+    except Exception as e:
+        print("解析失败：", type(e).__name__)
+        print(str(e)[:500])
